@@ -1,0 +1,33 @@
+{
+  "name": "homebridge-russound-rio",
+  "version": "0.0.1",
+  "description": "Russound RIO plugin for homebridge: https://github.com/nfarina/homebridge",
+  "license": "ISC",
+  "keywords": [
+    "Russound",
+    "RIO",
+    "HomeBridge",
+    "homebridge-plugin"
+  ],
+  "engines": {
+    "node": ">=5.0.0",
+    "homebridge": ">=0.4.5"
+  },
+  "author": {
+    "name": "Michael Pettorosso"
+  },
+  "contributors": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/michaelpettorosso/homebridge-russound-rio.git"
+  },
+  "dependencies": {
+    "async": "^3.2.0",
+    "nconf": "^0.10.0",
+    "net": "^1.0.2",
+    "child_process": "^1.0.2",
+    "request": "2.88.0",
+    "request-promise": "^4.2.4",
+    "ip": "^1.1.3"
+  }
+}
