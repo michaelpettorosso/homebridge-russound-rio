@@ -1,6 +1,6 @@
 {
   "name": "homebridge-russound-rio",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Russound RIO plugin for homebridge: https://github.com/nfarina/homebridge",
   "main": "index.js",
   "license": "ISC",
