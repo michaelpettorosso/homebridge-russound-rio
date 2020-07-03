@@ -30,7 +30,7 @@
     "xo": "^0.24.0"
   },
   "dependencies": {
-    "russound-rio": "^0.0.5"
+    "russound-rio": "^0.0.6"
   },
   "homepage": "https://github.com/michaelpettorosso/homebridge-russound-rio#readme",
   "xo": {

@@ -1,4 +1,4 @@
-const { RIO, enums } = require('russound-rio');
+const { RIO } = require('russound-rio');
 let Service, Characteristic, Homebridge, Accessory, UUIDGen, rio;
 
 const PLUGIN_NAME = 'homebridge-russound-rio';
@@ -20,11 +20,11 @@ class RussoundPlatform {
   // EVENT FUNCTIONS
   /// ////////////////
   eventDebug = (response) => {
-    this.log.info('eventDebug: %s', response);
+    this.log.debug('eventDebug: %s', response);
   };
 
   eventError = (response) => {
-    this.log.info('eventError: %s', response);
+    this.log.error('eventError: %s', response);
   };
 
   eventConnect = (response) => {
@@ -36,7 +36,7 @@ class RussoundPlatform {
   };
 
   eventSource = (sourceId, variable, value) => {
-    this.log.info('Source Event', sourceId, variable, value)
+    this.log.debug('Source Event', sourceId, variable, value)
   };
 
   get savedZones() {
@@ -120,7 +120,7 @@ class RussoundPlatform {
 
   eventZones = (controllerId, zones) => {
     if (!this.savedZones) {
-      this.log.info('Zones Event', controllerId, zones)
+      this.log.debug('Zones Event', controllerId, zones)
       this.savedZones = zones;
       if (this.savedSources)
         this.populateAccessories(this, this.config.controllers);
@@ -129,7 +129,7 @@ class RussoundPlatform {
 
   eventSources = (controllerId, sources) => {
     if (!this.savedSources) {
-      this.log.info('Sources Event', controllerId, sources)
+      this.log.debug('Sources Event', controllerId, sources)
       this.savedSources = sources;
       if (this.savedZones)
         this.populateAccessories(this, this.config.controllers);
@@ -138,10 +138,10 @@ class RussoundPlatform {
   };
 
   eventSystem = (variable, value) => {
-    this.log.info('System Event', variable, value)
+    this.log.debug('System Event', variable, value)
   };
   eventController = (controllerId, variable, value) => {
-    this.log.info('Controller Event', controllerId, variable, value)
+    this.log.debug('Controller Event', controllerId, variable, value)
   };
 
 
@@ -172,11 +172,11 @@ class RussoundPlatform {
     rio.on('connect', this.eventConnect.bind(this));
     rio.on('close', this.eventClose.bind(this));
 
-    rio.on(enums.EMIT.SYSTEM, this.eventSystem.bind(this));
-    rio.on(enums.EMIT.CONTROLLER, this.eventController.bind(this));
-    rio.on(enums.EMIT.SOURCE, this.eventSource.bind(this));
-    rio.on(enums.EMIT.ZONES, this.eventZones.bind(this));
-    rio.on(enums.EMIT.SOURCES, this.eventSources.bind(this));
+    rio.on(RIO.enums.EMIT.SYSTEM, this.eventSystem.bind(this));
+    rio.on(RIO.enums.EMIT.CONTROLLER, this.eventController.bind(this));
+    rio.on(RIO.enums.EMIT.SOURCE, this.eventSource.bind(this));
+    rio.on(RIO.enums.EMIT.ZONES, this.eventZones.bind(this));
+    rio.on(RIO.enums.EMIT.SOURCES, this.eventSources.bind(this));
 
 
     api.on('didFinishLaunching', () => {
@@ -200,14 +200,14 @@ const createAccessories = (platform, config) => {
       var Promises = [];
       platform.log.info("Connected to Controller");
 
-      Promises.push(rio.getSystemStatus());
-      Promises.push(rio.getVersion());
-      Promises.push(rio.getControllerCommands());
-      Promises.push(rio.getZones());
-      Promises.push(rio.getSources());
-      Promises.push(rio.watchZones());
-      //await rio.watchSystem();
-      //await rio.watchSources();
+      Promises.push(rio.get.systemStatus());
+      Promises.push(rio.get.systemVersion());
+      Promises.push(rio.get.allControllerCommands());
+      Promises.push(rio.get.zoneNames());
+      Promises.push(rio.get.sourceNames());
+      Promises.push(rio.watch.allZones());
+      //await rio.watch.system();
+      //await rio.watch.allSources();
       Promise.all(Promises).then(() => {
 
       }).catch((error) => {
@@ -280,28 +280,28 @@ class ZoneAccessory {
       [Characteristic.RemoteKey.PLAY_PAUSE]: 'Play', // 11
       [Characteristic.RemoteKey.INFORMATION]: 'Info' // 15
     };
-    rio.on(enums.EMIT.ZONE, this.eventZone.bind(this));
+    rio.on(RIO.enums.EMIT.ZONE, this.eventZone.bind(this));
 
     this.setUpServices();
   }
   eventZone = (controllerId, zoneId, variable, value) => {
     if (zoneId === this.zoneId) {
-      if (variable === enums.ZONE.VOLUME)
+      if (variable === RIO.enums.ZONE.VOLUME)
         this.setVolume(value);
-      else if (variable === enums.ZONE.STATUS)
+      else if (variable === RIO.enums.ZONE.STATUS)
         this.setPower(value);
-      else if (variable === enums.ZONE.MUTE)
+      else if (variable === RIO.enums.ZONE.MUTE)
         this.setMute(value);
-      else if (variable === enums.ZONE.CURRENT_SOURCE)
+      else if (variable === RIO.enums.ZONE.CURRENT_SOURCE)
         this.setSource(value);
       else
-        this.#log.info('Zone Event', controllerId, zoneId, variable, value)
+        this.#log.debug('Zone Event', controllerId, zoneId, variable, value)
     }
   };
 
   setPower(value) {
     if (this.#powerState !== (value === 'ON'))
-      this.#log.info('Event - Power changed: %s, for : %s', value, this.zoneId);
+      this.#log.debug('Event - Power changed: %s, for : %s', value, this.zoneId);
 
     this.#powerState = (value === 'ON');
     this.#log.debug('eventPower - message: %s, for zone: %s, new state %s', value, this.zoneId, this.#powerState);
@@ -338,7 +338,7 @@ class ZoneAccessory {
       // Convert to source input code
       /* eslint no-negated-condition: "warn" */
       if (this.#sourceState !== value)
-        this.#log.info('Event - Source changed: %s, for zone: %s', source.name, this.zoneId);
+        this.#log.debug('Event - Source changed: %s, for zone: %s', source.name, this.zoneId);
 
       this.#sourceState = source.id;
 
@@ -357,10 +357,10 @@ class ZoneAccessory {
       const volumeMultiplier = this.#maxVolume / 100;
       const newVolume = value / volumeMultiplier;
       this.#volumeState = Math.round(newVolume);
-      this.#log.info('eventVolume - message: %s, for zone: %s, new volume %s PERCENT', value, this.zoneId, this.#volumeState);
+      this.#log.debug('eventVolume - message: %s, for zone: %s, new volume %s PERCENT', value, this.zoneId, this.#volumeState);
     } else {
       this.#volumeState = value;
-      this.#log.info('eventVolume - message: %s, for zone: %s, new volume %s ACTUAL', value, this.zoneId, this.#volumeState);
+      this.#log.debug('eventVolume - message: %s, for zone: %s, new volume %s ACTUAL', value, this.zoneId, this.#volumeState);
     }
     // Communicate status
     if (this.zoneSpeakerService)
