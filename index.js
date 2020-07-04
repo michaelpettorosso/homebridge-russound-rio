@@ -11,11 +11,43 @@ module.exports = function (homebridge) {
   Homebridge = homebridge;
   Accessory = homebridge.platformAccessory;
   UUIDGen = homebridge.hap.uuid;
-  homebridge.registerPlatform(PLUGIN_NAME, PLATFORM_NAME, RussoundPlatform);
+  homebridge.registerPlatform(PLUGIN_NAME, PLATFORM_NAME, RussoundPlatform, true);
 };
 
 class RussoundPlatform {
+  constructor(log, config, api) {
+    this.log = log;
+    this.config = config || {};
+    this.controllers = {};
+    this.zones = null;
+    this.sources = null;;
+    this.log.debugEnabled = (this.config.debug === true)
+    this.accessories = [];
+    this.api = api;
 
+    if (this.config.controllers === undefined) {
+      this.log.error('ERROR: your configuration is incorrect.');
+      this.controllers = '';
+    }
+    rio = new RIO(this.config, this.log);
+
+    rio.on('debug', this.eventDebug.bind(this));
+    rio.on('error', this.eventError.bind(this));
+    rio.on('connect', this.eventConnect.bind(this));
+    rio.on('close', this.eventClose.bind(this));
+
+    rio.on(RIO.enums.EMIT.SYSTEM, this.eventSystem.bind(this));
+    rio.on(RIO.enums.EMIT.CONTROLLER, this.eventController.bind(this));
+    rio.on(RIO.enums.EMIT.SOURCE, this.eventSource.bind(this));
+    rio.on(RIO.enums.EMIT.ZONES, this.eventZones.bind(this));
+    rio.on(RIO.enums.EMIT.SOURCES, this.eventSources.bind(this));
+
+
+    api.on('didFinishLaunching', () => {
+      const uuid = api.hap.uuid.generate('SOMETHING UNIQUE');
+      createAccessories(this, this.config.controllers);
+    })
+  }
   /// ////////////////
   // EVENT FUNCTIONS
   /// ////////////////
@@ -56,7 +88,7 @@ class RussoundPlatform {
   }
 
   populateAccessories = (platform, config) => {
-    if (platform, config && rio) {
+    if (platform && config && rio) {
       config.forEach((controllerConfig) => {
         var controllerName = controllerConfig.name || platform.config.name || 'Russound';
 
@@ -96,7 +128,7 @@ class RussoundPlatform {
               platform.log.info('Adding new accessory:', `${controllerName}-${zone.name}`);
 
               // create a new accessory
-              const accessory = new platform.api.platformAccessory(`${zone.name} Speaker`, uuid);
+              const accessory = new platform.api.platformAccessory(`${zone.name} Zone`, uuid);
               accessory.category = Homebridge.hap.Accessory.Categories.AUDIO_RECEIVER
               // store a copy of the device object in the `accessory.context`
               // the `context` property can be used to store any data about the accessory you may need
@@ -105,13 +137,11 @@ class RussoundPlatform {
               // create the accessory handler for the newly create accessory
               // this is imported from `platformAccessory.ts`
               const zoneAccessory = new ZoneAccessory(platform, accessory, controllerName, zone, cc.sources);
-
               accessories.push(zoneAccessory);
 
               // link the accessory to your platform
               platform.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
             }
-            //addAccessory(controllerName, ip, cc.zones[i], cc.sources);
           }
         return accessories;
       });
@@ -144,47 +174,6 @@ class RussoundPlatform {
     this.log.debug('Controller Event', controllerId, variable, value)
   };
 
-
-  constructor(log, config, api) {
-    this.log = log;
-    this.config = config || {};
-    this.controllers = {};
-    this.zones = null;
-    this.sources = null;;
-    this.log.debugEnabled = (this.config.debug === true)
-    this.accessories = [];
-    if (api) {
-      this.api = api;
-
-      if (api.version < 2.1) {
-        throw new Error('Unexpected Homebridge API version.');
-      }
-
-    }
-    if (this.config.controllers === undefined) {
-      this.log.error('ERROR: your configuration is incorrect.');
-      this.controllers = '';
-    }
-    rio = new RIO(this.config, this.log);
-
-    rio.on('debug', this.eventDebug.bind(this));
-    rio.on('error', this.eventError.bind(this));
-    rio.on('connect', this.eventConnect.bind(this));
-    rio.on('close', this.eventClose.bind(this));
-
-    rio.on(RIO.enums.EMIT.SYSTEM, this.eventSystem.bind(this));
-    rio.on(RIO.enums.EMIT.CONTROLLER, this.eventController.bind(this));
-    rio.on(RIO.enums.EMIT.SOURCE, this.eventSource.bind(this));
-    rio.on(RIO.enums.EMIT.ZONES, this.eventZones.bind(this));
-    rio.on(RIO.enums.EMIT.SOURCES, this.eventSources.bind(this));
-
-
-    api.on('didFinishLaunching', () => {
-      const uuid = api.hap.uuid.generate('SOMETHING UNIQUE');
-      createAccessories(this, this.config.controllers);
-    })
-  }
-
   configureAccessory(accessory) {
     this.log.info('Loading accessory from cache:', accessory.displayName);
 
@@ -194,12 +183,12 @@ class RussoundPlatform {
 }
 
 const createAccessories = (platform, config) => {
-  if (platform, config && rio) {
+  if (platform && config && rio) {
 
     rio.connect().then(() => {
-      var Promises = [];
       platform.log.info("Connected to Controller");
-
+      var Promises = [];
+      platform.log.debug("Get settings and watch for zone changes");
       Promises.push(rio.get.systemStatus());
       Promises.push(rio.get.systemVersion());
       Promises.push(rio.get.allControllerCommands());
@@ -219,10 +208,9 @@ const createAccessories = (platform, config) => {
     });
   }
   else {
-    platform.log.warn('No Controllers configured.');
+    if (platform)
+      platform.log.info('No Controllers configured.');
   }
-
-
 }
 
 class ZoneAccessory {
@@ -252,7 +240,7 @@ class ZoneAccessory {
 
     this.zoneId = zone.id;
 
-    this.name = zone.name + ' Zone Speaker';
+    this.name = zone.name + ' Zone';
     this.avrManufacturer = 'Russound';
     this.avrSerial = `0000-${this.zoneId}-0000`;
     this.model = `${controllerName}-Zone${this.zoneId}`;
@@ -376,7 +364,7 @@ class ZoneAccessory {
     // have the event later on execute changes
     callback(null, this.state);
     this.#log.debug('getPowerState - actual mode, return state: ', this.state);
-    rio.getZoneStatus(this.zoneId).then((response, error) => {
+    rio.get.zoneStatus(this.zoneId).then((response, error) => {
       if (error) {
         this.state = false;
         this.#log.debug('getPowerState - PWR QRY: ERROR - current state: %s', this.state);
@@ -391,7 +379,7 @@ class ZoneAccessory {
     // have the event later on execute changes
     callback(null, this.#powerState);
     this.#log.debug('setPowerState - actual mode, power state: %s, switching to ON', this.#powerState);
-    rio.powerZone(this.zoneId, powerOn).then((response, error) => {
+    rio.set.zoneStatus(this.zoneId, powerOn).then((response, error) => {
       if (error) {
         this.state = false;
         this.#log.error('setPowerState - PWR %s: ERROR - current state: %s', powerOn ? 'ON' : 'OFF', this.#powerState);
@@ -413,7 +401,7 @@ class ZoneAccessory {
     var prevVolume = this.#volumeState;
     callback(null, this.#volumeState);
     this.#log.debug('getVolumeState - actual mode, return volume: ', this.#volumeState);
-    rio.getZoneVolume(this.zoneId).then((response, error) => {
+    rio.get.zoneVolume(this.zoneId).then((response, error) => {
       if (error) {
         this.#volumeState = prevVolume;
         this.#log.debug('getVolumeState - VOLUME QRY: ERROR - current volume: %s', this.#volumeState);
@@ -447,13 +435,25 @@ class ZoneAccessory {
     callback(null, this.#volumeState);
 
     //if (this.#volumeState && this.volumeDimmerService.getCharacteristic(Characteristic.On).value === Characteristic.ON)
-    rio.volumeZone(this.zoneId, this.#volumeState).then((response, error) => {
+    rio.set.zoneVolume(this.zoneId, this.#volumeState).then((response, error) => {
       if (error) {
         this.#volumeState = preVolume;
         this.#log.debug('setVolumeState - VOLUME : ERROR - current volume: %s', this.#volumeState);
       }
     });
+
+    if (this.#muteState)
+      this.setMuteState(false, () => { });
   }
+
+  setVolumeRelativeUpDown(volumeDirection, callback) {
+    this.setVolumeRelative(volumeDirection, callback);
+    setTimeout(() => {
+      if (this.volumeUpService) this.volumeUpService.getCharacteristic(Characteristic.On).updateValue(false);
+      if (this.volumeDownService) this.volumeDownService.getCharacteristic(Characteristic.On).updateValue(false);
+    }, 10);
+  }
+
 
   setVolumeRelative(volumeDirection, callback) {
     // do the callback immediately, to free homekit
@@ -462,7 +462,7 @@ class ZoneAccessory {
     var prevVolume = this.#volumeState;
     if (volumeDirection === Characteristic.VolumeSelector.INCREMENT) {
       this.#log.debug('setVolumeRelative - VOLUME : level-up');
-      rio.volumeZoneUpDown(this.zoneId, true).then((response, error) => {
+      rio.set.zoneVolumeUpDown(this.zoneId, true).then((response, error) => {
         if (error) {
           this.#volumeState = prevVolume;
           this.#log.error('setVolumeRelative - VOLUME : ERROR - current volume: %s', this.#volumeState);
@@ -470,7 +470,7 @@ class ZoneAccessory {
       });
     } else if (volumeDirection === Characteristic.VolumeSelector.DECREMENT) {
       this.#log.debug('setVolumeRelative - VOLUME : level-down');
-      rio.volumeZoneUpDown(this.zoneId, false).then((response, error) => {
+      rio.set.zoneVolumeUpDown(this.zoneId, false).then((response, error) => {
         if (error) {
           this.#volumeState = prevVolume;
           this.#log.error('setVolumeRelative - VOLUME : ERROR - current volume: %s', this.#volumeState);
@@ -485,7 +485,7 @@ class ZoneAccessory {
     // have the event later on execute changes
     callback(null, this.#muteState);
     this.#log.debug('getMuteState - actual mode, return m_state: ', this.#muteState);
-    rio.getZoneMute(this.zoneId).then((response, error) => {
+    rio.get.zoneMute(this.zoneId).then((response, error) => {
       if (error) {
         this.#muteState = false;
         this.#log.debug('getMuteState - MUTE QRY: ERROR - current m_state: %s', this.#muteState);
@@ -499,7 +499,7 @@ class ZoneAccessory {
     this.#muteState = muteOn;
     callback(null, this.#muteState);
     this.#log.debug('setMuteState - actual mode, this.#muteState: %s, switching to %s', this.#muteState, muteOn ? 'ON' : 'OFF');
-    rio.muteToggleZone(this.zoneId).then((response, error) => {
+    rio.set.zoneMute(this.zoneId, this.#muteState).then((response, error) => {
       if (error) {
         this.#muteState = false;
         this.#log.error('setMuteState - MUTE %s: ERROR - current this.#muteState: %s', muteOn ? 'ON' : 'OFF', this.#muteState);
@@ -513,7 +513,7 @@ class ZoneAccessory {
     var prevSource = this.#sourceState;
     this.#log.debug('getInputSource - actual mode, return source: ', this.#sourceState);
     callback(null, this.#sourceState);
-    rio.getZoneSource(this.zoneId).then((response, error) => {
+    rio.get.zoneSource(this.zoneId).then((response, error) => {
       if (error) {
         this.#sourceState = prevSource;
         this.#log.error('getInputState - INPUT QRY: ERROR - current source: %s', this.#sourceState);
@@ -532,7 +532,7 @@ class ZoneAccessory {
     // do the callback immediately, to free homekit
     // have the event later on execute changes
     callback(null, this.#sourceState);
-    rio.selectZoneSource(this.zoneId, this.#sourceState).then((response, error) => {
+    rio.set.zoneSource(this.zoneId, this.#sourceState).then((response, error) => {
       if (error) {
         this.#sourceState = prevSource;
         this.#log.error('setInputSource: ERROR - current source:%s - %s', this.#sourceState, source.name);
@@ -547,7 +547,7 @@ class ZoneAccessory {
     var button = this.#buttons[value];
     if (button) {
       this.#log.debug('remoteKeyPress - INPUT: pressing key %s', button);
-      rio.keypressZone(this.zoneId, button).then((response, error) => {
+      rio.set.zoneKeypress(this.zoneId, button).then((response, error) => {
         if (error) {
           this.#log.error('remoteKeyPress - INPUT: ERROR pressing button %s', button);
         }
@@ -569,6 +569,9 @@ class ZoneAccessory {
     this.createZoneSpeakerService(this.zoneService);
     this.#enabledServices.push(...this.addZoneSources(this.zoneService));
     this.createVolumeDimmerService(this.zoneService);
+    this.createVolumeButtonServices(this.zoneService);
+    this.createMediaControlServices(this.zoneService);
+
     this.zoneService.setPrimaryService(true);
   }
 
@@ -583,8 +586,7 @@ class ZoneAccessory {
 
     var configuredName = this.infoService.getCharacteristic(Characteristic.ConfiguredName) || this.infoService.addCharacteristic(Characteristic.ConfiguredName)
     if (configuredName)
-      this.infoService
-        .updateCharacteristic(Characteristic.ConfiguredName, this.name || this.model)
+      this.infoService.updateCharacteristic(Characteristic.ConfiguredName, this.name || this.model)
     this.#enabledServices.push(this.infoService)
   }
 
@@ -622,18 +624,17 @@ class ZoneAccessory {
 
   addZoneSources(zoneService) {
     const sources = this.#sources.map((source, index) => {
-      const hapId = index + 1;
-      return this.setupZoneInput(source.name, hapId, zoneService);
+      return this.setupZoneInput(source.name, index + 1, zoneService);
     });
     return sources;
   }
 
-  setupZoneInput(name, hapId, zoneService) {
+  setupZoneInput(name, index, zoneService) {
     const input = this.#accessory.getServiceById(Service.InputSource, `input${name.toLowerCase()}`) || this.#accessory.addService(Service.InputSource, `${name}`, `input${name.toLowerCase()}`);
-    const inputSourceType = Characteristic.InputSourceType.HDMI;
+    const inputSourceType = Characteristic.InputSourceType.APPLICATION;
 
     input
-      .setCharacteristic(Characteristic.Identifier, hapId)
+      .setCharacteristic(Characteristic.Identifier, index)
       .setCharacteristic(Characteristic.ConfiguredName, name)
       .setCharacteristic(Characteristic.IsConfigured, Characteristic.IsConfigured.CONFIGURED)
       .setCharacteristic(Characteristic.InputSourceType, inputSourceType);
@@ -641,7 +642,9 @@ class ZoneAccessory {
     input.getCharacteristic(Characteristic.ConfiguredName).setProps({
       perms: [Characteristic.Perms.READ]
     });
-
+    var inputDeviceType = input.getCharacteristic(Characteristic.InputDeviceType) || input.addCharacteristic(Characteristic.InputDeviceType)
+    if (inputDeviceType)
+      input.updateCharacteristic(Characteristic.InputDeviceType, Characteristic.InputDeviceType.AUDIO_SYSTEM)
     zoneService.addLinkedService(input);
     return input;
   }
@@ -672,6 +675,39 @@ class ZoneAccessory {
     this.#enabledServices.push(this.volumeDimmerService);
   }
 
+  getVolumeSwitch(callback) {
+    callback(null, false);
+  }
+  createVolumeButtonServices(zoneService) {
+    this.volumeUpService = this.#accessory.getServiceById(Service.Switch, 'volumeUpService') || this.#accessory.addService(Service.Switch, `${this.name} Volume Up`, 'volumeUpService');
+    this.volumeUpService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getVolumeSwitch.bind(this))
+      .on('set', (state, callback) => {
+        this.setVolumeRelativeUpDown(Characteristic.VolumeSelector.INCREMENT, callback);
+      });
+    zoneService.addLinkedService(this.volumeUpService);
+    this.#enabledServices.push(this.volumeUpService);
+
+    this.volumeDownService = this.#accessory.getServiceById(Service.Switch, 'volumeDownService') || this.#accessory.addService(Service.Switch, `${this.name} Volume Down`, 'volumeDownService');
+    this.volumeDownService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getVolumeSwitch.bind(this))
+      .on('set', (state, callback) => {
+        this.setVolumeRelativeUpDown(Characteristic.VolumeSelector.DECREMENT, callback);
+      });
+
+    zoneService.addLinkedService(this.volumeDownService);
+    this.#enabledServices.push(this.volumeDownService);
+
+    this.muteService = this.#accessory.getServiceById(Service.Switch, 'muteService') || this.#accessory.addService(Service.Switch, `${this.name} Mute`, 'muteService');
+    this.muteService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getMuteState.bind(this))
+      .on('set', this.setMuteState.bind(this));
+    zoneService.addLinkedService(this.muteService);
+    this.#enabledServices.push(this.muteService);
+  }
 
   createZoneSpeakerService(zoneService) {
     this.zoneSpeakerService = this.#accessory.getServiceById(Service.TelevisionSpeaker, 'zoneSpeakerService') || this.#accessory.addService(Service.TelevisionSpeaker, `${this.name} Volume`, 'zoneSpeakerService');
@@ -693,5 +729,87 @@ class ZoneAccessory {
 
     zoneService.addLinkedService(this.zoneSpeakerService);
     this.#enabledServices.push(this.zoneSpeakerService);
+  }
+  getMediaControlSwitch(callback) {
+    callback(null, false);
+  }
+
+  setMediaControlSwitch(state, callback, action) {
+    this.#log.debug('Media control service - current media %s', action);
+    if (action === 'play') {
+      //this.lgtv.request('ssap://media.controls/play');
+    } else if (action === 'pause') {
+      //this.lgtv.request('ssap://media.controls/pause');
+    } else if (action === 'stop') {
+      //this.lgtv.request('ssap://media.controls/stop');
+    } else if (action === 'rewind') {
+      //this.lgtv.request('ssap://media.controls/rewind');
+    } else if (action === 'fastForward') {
+      // this.lgtv.request('ssap://media.controls/fastForward');
+    }
+    setTimeout(() => {
+      if (this.mediaPlayService) this.mediaPlayService.getCharacteristic(Characteristic.On).updateValue(false);
+      if (this.mediaPauseService) this.mediaPauseService.getCharacteristic(Characteristic.On).updateValue(false);
+      if (this.mediaStopService) this.mediaStopService.getCharacteristic(Characteristic.On).updateValue(false);
+      if (this.mediaRewindService) this.mediaRewindService.getCharacteristic(Characteristic.On).updateValue(false);
+      if (this.mediaFastForwardService) this.mediaFastForwardService.getCharacteristic(Characteristic.On).updateValue(false);
+    }, 10);
+    callback();
+  }
+
+
+  createMediaControlServices(zoneService) {
+    this.mediaPlayService = this.#accessory.getServiceById(Service.Switch, 'mediaPlayService') || this.#accessory.addService(Service.Switch, `${this.name} Play`, 'mediaPlayService');
+    this.mediaPlayService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getMediaControlSwitch.bind(this))
+      .on('set', (state, callback) => {
+        this.setMediaControlSwitch(state, callback, 'play');
+      });
+
+    zoneService.addLinkedService(this.mediaPlayService);
+    this.#enabledServices.push(this.mediaPlayService);
+
+    this.mediaPauseService = this.#accessory.getServiceById(Service.Switch, 'mediaPauseService') || this.#accessory.addService(Service.Switch, `${this.name} Pause`, 'mediaPauseService');
+    this.mediaPauseService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getMediaControlSwitch.bind(this))
+      .on('set', (state, callback) => {
+        this.setMediaControlSwitch(state, callback, 'pause');
+      });
+    zoneService.addLinkedService(this.mediaPauseService);
+
+    this.#enabledServices.push(this.mediaPauseService);
+
+    this.mediaStopService = this.#accessory.getServiceById(Service.Switch, 'mediaStopService') || this.#accessory.addService(Service.Switch, `${this.name} Stop`, 'mediaStopService');
+    this.mediaStopService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getMediaControlSwitch.bind(this))
+      .on('set', (state, callback) => {
+        this.setMediaControlSwitch(state, callback, 'stop');
+      });
+    zoneService.addLinkedService(this.mediaStopService);
+    this.#enabledServices.push(this.mediaStopService);
+
+    this.mediaRewindService = this.#accessory.getServiceById(Service.Switch, 'mediaRewindService') || this.#accessory.addService(Service.Switch, `${this.name} Rewind`, 'mediaRewindService');
+    this.mediaRewindService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getMediaControlSwitch.bind(this))
+      .on('set', (state, callback) => {
+        this.setMediaControlSwitch(state, callback, 'rewind');
+      });
+
+    zoneService.addLinkedService(this.mediaRewindService);
+    this.#enabledServices.push(this.mediaRewindService);
+
+    this.mediaFastForwardService = this.#accessory.getServiceById(Service.Switch, 'mediaFastForwardService') || this.#accessory.addService(Service.Switch, `${this.name} Fast Forward`, 'mediaFastForwardService');
+    this.mediaFastForwardService
+      .getCharacteristic(Characteristic.On)
+      .on('get', this.getMediaControlSwitch.bind(this))
+      .on('set', (state, callback) => {
+        this.setMediaControlSwitch(state, callback, 'fastForward');
+      });
+    zoneService.addLinkedService(this.mediaFastForwardService);
+    this.#enabledServices.push(this.mediaFastForwardService);
   }
 }
