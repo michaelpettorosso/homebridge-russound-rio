@@ -25,7 +25,7 @@ It provides the HomeKit Zone Accesories with services which include a
       Stop
       Info
 
-![Screenshot](accessories.jpg)
+![Screenshot](zones.jpg) ![Screenshot](accessories.jpg) ![Screenshot](remote.jpg)
 
 # Changelog
 * Version 0.1.1 Changed Zones to be External Accessories, creates a remote in Apple Remote App for each zone.
