@@ -25,6 +25,17 @@ It provides the HomeKit Zone Accesories with services which include a
       Stop
       Info
 
+![Screenshot](accessories.jpg)
+
+# Changelog
+* Version 0.1.1 Changed Zones to be External Accessories, creates a remote in Apple Remote App for each zone.
+* Initial Release.
+
+# To Do
+
+Only supports one controller at the moment
+
+
 ## Requirements and Limitations
 
 ## Installation
@@ -45,123 +56,125 @@ sudo npm install -g --unsafe-perm homebridge-russound-rio
 Add the platform in `config.json` in your home directory inside `.homebridge` and edit the required fields.
 
 ```js
-"platforms": [
-    {
-            "name": "Russound",
-            "controllers": [
-                {
-                    "name": "MCA XXX",
-                    "ip": "your.russound.ip",
-                    "zones": [
-                        {
-                            "name": "Zone1",
-                            "display_name": "Zone 1"
-                            "sources": [
-                                "Source1",
-                                "Source2",
-                                "Source3",
-                                "Source4",
-                                "Source5",
-                                "Source6"
-                            ]
-                        },
-                        {
-                            "name": "Zone2",
-                            "display_name": "Zone 2"
-                            "sources": [
-                                "Source1",
-                                "Source2",
-                                "Source3",
-                                "Source4",
-                                "Source5",
-                                "Source6"
-                            ]
-                        },
-                        {
-                            "name": "Zone3",
-                            "display_name": "Zone 3"
-                            "sources": [
-                                "Source1",
-                                "Source2",
-                                "Source3",
-                                "Source4",
-                                "Source5",
-                                "Source6"
-                            ],
-                            "enable": false
-                        },
-                        {
-                            "name": "Zone4",
-                            "display_name": "Zone 4"
-                            "sources": [
-                                "Source1",
-                                "Source2",
-                                "Source3",
-                                "Source4",
-                                "Source5",
-                                "Source6"
-                            ]
-                        },
-                        {
-                            "name": "Zone5",
-                            "display_name": "Zone 5
-                            "sources": [
-                                "Source1",
-                                "Source2",
-                                "Source3",
-                                "Source4",
-                                "Source5",
-                                "Source6"
-                            ]
-                        },
-                        {
-                            "name": "Zone6",
-                            "display_name": "Zone 6"
-                            "sources": [
-                                "Source1",
-                                "Source2",
-                                "Source3",
-                                "Source4",
-                                "Source5",
-                                "Source6"
-                            ]
-                        }
-                    ],
-                    "sources": [
-                        {
-                            "name": "Source1",
-                            "display_name": "Source 1"
-                        },
-                        {
-                            "name": "Source2",
-                            "display_name": "Source 2"
-                        },
-                        {
-                            "name": "Source3",
-                            "display_name": "Source 3"
-                        },
-                        {
-                            "name": "Source4",
-                            "display_name": "Source 4"
-                        },
-                        {
-                            "name": "Source5",
-                            "display_name": "Source 5"
-                        },
-                        {
-                            "name": "Source6",
-                            "display_name": "Source 6"
-                        }
-                    ]
-                }
-            ],
-            "debug": false,
-            "platform": "Russound"
-    }
-]
+{
+   "platforms":[
+      {
+         "name":"Russound",
+         "controllers":[
+            {
+               "name":"MCA XXX",
+               "ip":"your.russound.ip",
+               "zones":[
+                  {
+                     "name":"Zone1",
+                     "display_name":"Zone 1",
+                     "sources":[
+                        "Source1",
+                        "Source2",
+                        "Source3",
+                        "Source4",
+                        "Source5",
+                        "Source6"
+                     ]
+                  },
+                  {
+                     "name":"Zone2",
+                     "display_name":"Zone 2",
+                     "sources":[
+                        "Source1",
+                        "Source2",
+                        "Source3",
+                        "Source4",
+                        "Source5",
+                        "Source6"
+                     ]
+                  },
+                  {
+                     "name":"Zone3",
+                     "display_name":"Zone 3",
+                     "sources":[
+                        "Source1",
+                        "Source2",
+                        "Source3",
+                        "Source4",
+                        "Source5",
+                        "Source6"
+                     ],
+                     "enable":false
+                  },
+                  {
+                     "name":"Zone4",
+                     "display_name":"Zone 4",
+                     "sources":[
+                        "Source1",
+                        "Source2",
+                        "Source3",
+                        "Source4",
+                        "Source5",
+                        "Source6"
+                     ]
+                  },
+                  {
+                     "name":"Zone5",
+                     "display_name":"Zone 5",
+                     "sources":[
+                        "Source1",
+                        "Source2",
+                        "Source3",
+                        "Source4",
+                        "Source5",
+                        "Source6"
+                     ]
+                  },
+                  {
+                     "name":"Zone6",
+                     "display_name":"Zone 6",
+                     "sources":[
+                        "Source1",
+                        "Source2",
+                        "Source3",
+                        "Source4",
+                        "Source5",
+                        "Source6"
+                     ]
+                  }
+               ],
+               "sources":[
+                  {
+                     "name":"Source1",
+                     "display_name":"Source 1"
+                  },
+                  {
+                     "name":"Source2",
+                     "display_name":"Source 2"
+                  },
+                  {
+                     "name":"Source3",
+                     "display_name":"Source 3"
+                  },
+                  {
+                     "name":"Source4",
+                     "display_name":"Source 4"
+                  },
+                  {
+                     "name":"Source5",
+                     "display_name":"Source 5"
+                  },
+                  {
+                     "name":"Source6",
+                     "display_name":"Source 6"
+                  }
+               ]
+            }
+         ],
+         "debug":false,
+         "platform":"Russound"
+      }
+   ]
+}
 ```
 
-### NOTE:
+### Config Explanation:
 
 The names Zone1, Zone2, Zone3, Zone4, Zone5 and Zone6 should match the Zone names given in the Russound Controller configuration (the names in the Russound App)
 
