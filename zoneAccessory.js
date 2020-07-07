@@ -114,16 +114,17 @@ class ZoneAccessory {
 
     setSource(value) {
         if (value) {
-            const source = this.#controller.systemSources.find(s => s.id === value);
-
+            const source = this.#zone.sources.find(s => s.id === value);
             // Convert to source input code
             /* eslint no-negated-condition: "warn" */
             if (this.#sourceState !== value)
-                this.#log.debug('Event - Source changed: %s, for zone: %s', source.name, this.zoneId);
-
+            {
+                const currentSource = this.#zone.sources.find(s => s.id === this.#sourceState);
+                this.#log.debug('Event - Source changed: from %s to %s, for zone: %s', currentSource? currentSource.display_name : 'NULL', source.display_name, this.zoneId);
+            }
             this.#sourceState = source.id;
 
-            this.#log.debug('setSource - message: %s, for zone: %s - sourceState: %s - input: %s', value, this.zoneId, this.#sourceState, source.name);
+            this.#log.debug('setSource - message: %s, for zone: %s - sourceState: %s - input: %s', value, this.zoneId, this.#sourceState, source.display_name);
             if (this.zoneService)
                 this.zoneService.updateCharacteristic(Characteristic.ActiveIdentifier, this.#sourceState);
         } else {
@@ -208,8 +209,6 @@ class ZoneAccessory {
     setVolumeState(level, callback) {
 
         var preVolume = this.#volumeState;
-        //if (this.volumeDimmerService.getCharacteristic(Characteristic.On).value !== Characteristic.ON)
-        //  this.currentVolume = preVolume;
         // Are we mapping volume to 100%?
         if (this.#mapVolume100) {
             const volumeMultiplier = this.#maxVolume / 100;
@@ -325,9 +324,9 @@ class ZoneAccessory {
     setZoneSource(value, callback) {
         var prevSource = this.#sourceState;
         this.#sourceState = value;
-        const source = this.#zone.systemSources.find(s => s.id === value.toString());
+        const source = this.#zone.sources.find(s => s.id === value.toString());
 
-        this.#log.debug('setZoneSource - actual mode, ACTUAL input source: %s - %s', this.#sourceState, source.name);
+        this.#log.debug('setZoneSource - actual mode, ACTUAL input source: %s - %s', this.#sourceState, source.display_name);
 
         // do the callback immediately, to free homekit
         // have the event later on execute changes
@@ -335,7 +334,7 @@ class ZoneAccessory {
         this.#rio.set.zoneSource(this.zoneId, this.#sourceState).then((response, error) => {
             if (error) {
                 this.#sourceState = prevSource;
-                this.#log.error('setZoneSource: ERROR - current source:%s - %s', this.#sourceState, source.name);
+                this.#log.error('setZoneSource: ERROR - current source:%s - %s', this.#sourceState, source.display_name);
             }
         });
     }
