@@ -27,7 +27,7 @@
   "devDependencies": {
     "eslint": "^6.3.0",
     "eslint-plugin-json": "^1.4.0",
-    "xo": "^0.24.0"
+    "xo": "^0.53.1"
   },
   "dependencies": {
     "russound-rio": "^0.1.0"
