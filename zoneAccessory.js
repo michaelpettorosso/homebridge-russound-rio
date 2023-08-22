@@ -12,6 +12,7 @@ class ZoneAccessory {
     name = null;
     zoneId = null;
     #zone = null;
+    #addRemote = false;
     #reload = false;
     #controller = null
     #maxVolume = 50;
@@ -21,7 +22,7 @@ class ZoneAccessory {
     #muteState = false;
     #volumeState = 0;
     #sourceState = null;
-    constructor(platform, accessory, controller, zone, reload) {
+    constructor(platform, accessory, controller, zone, addRemote, reload) {
         this.#platform = platform;
         this.#rio = platform.rio;
         this.#log = platform.log;
@@ -29,6 +30,7 @@ class ZoneAccessory {
         this.#reload = reload
         this.#controller = controller;
         this.#zone = zone;
+        this.#addRemote = addRemote;
         this.zoneId = Number(zone.id);
         var zoneName = zone.display_name;
         ({ Service, Characteristic } = platform.api.hap);
@@ -369,8 +371,8 @@ class ZoneAccessory {
         this.createZoneSourceServices(this.zoneService);
         this.createVolumeDimmerService(this.zoneService);
         this.createVolumeButtonServices(this.zoneService);
-        this.createMediaControlServices(this.zoneService);
-
+        if (this.#addRemote)
+          this.createMediaControlServices(this.zoneService);
         this.zoneService.setPrimaryService(true);
     }
 

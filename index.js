@@ -26,10 +26,15 @@ class RussoundPlatform {
     this.zones = null;
     this.sources = null;;
     this.accessories = [];
+    this.addRemote = false;
     if (this.config.controllers === undefined) {
       this.log.error('ERROR: your configuration is incorrect.');
       this.controllers = null;
     }
+    if (this.config.addRemote != undefined) {
+      this.addRemote = this.config.addRemote;
+    }
+
     this.rio = null;
     api.on('didFinishLaunching', () => {
       this.setupControllers();
@@ -158,14 +163,14 @@ class RussoundPlatform {
 
               this.api.updatePlatformAccessories([existingAccessory]);
 
-              const zoneAccessory = new ZoneAccessory(this, existingAccessory, controller, zone, true);
+              const zoneAccessory = new ZoneAccessory(this, existingAccessory, controller, zone, this.addRemote, true);
 
             } else {
               // create a new accessory
-              this.log.info('Adding new accessory: %s, %s', `${zone.display_name} Zone`, zone.name);
+              this.log.info('Adding new accessory: %s, %s', `${zone.display_name} Speaker`, zone.name);
 
-              const accessory = new PlatformAccessory(`${zone.display_name} Zone`, uuid, Categories.AUDIO_RECEIVER);
-              const zoneAccessory = new ZoneAccessory(this, accessory, controller, zone);
+              const accessory = new PlatformAccessory(`${zone.display_name} Speaker`, uuid, Categories.AUDIO_RECEIVER);
+              const zoneAccessory = new ZoneAccessory(this, accessory, controller, zone, this.addRemote);
 
               // link the accessory to your platform
               this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
