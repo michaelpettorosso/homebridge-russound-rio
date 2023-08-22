@@ -28,6 +28,7 @@ It provides the HomeKit Zone Accesories with services which include a
 ![Screenshot](zones.jpg) ![Screenshot](accessories.jpg) ![Screenshot](remote.jpg)
 
 # Changelog
+* Version 0.1.2 Add config setting addRemote to enable Apple Remote App for each zone.
 * Version 0.1.1 Changed Zones to be External Accessories, creates a remote in Apple Remote App for each zone.
 * Initial Release.
 
