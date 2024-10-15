@@ -28,7 +28,7 @@ It provides the HomeKit Zone Accesories with services which include a
 ![Screenshot](zones.jpg) ![Screenshot](accessories.jpg) ![Screenshot](remote.jpg)
 
 # Changelog
-* Version 0.2.0 Updated to support .
+* Version 0.2.0 Updated to support Homebridge 2.0.
 * Version 0.1.2 Add config setting addRemote to enable Apple Remote App for each zone.
 * Version 0.1.1 Changed Zones to be External Accessories, creates a remote in Apple Remote App for each zone.
 * Initial Release.
@@ -62,6 +62,7 @@ Add the platform in `config.json` in your home directory inside `.homebridge` an
    "platforms":[
       {
          "name":"Russound",
+         "addRemote": false,
          "controllers":[
             {
                "name":"MCA XXX",
@@ -208,6 +209,7 @@ Platform-level configuration parameters:
 |------------------------|--------------------------------------------------------------------|---------------------------------------------------------------------------|----------|
 | platform               | Must always be `Russound`.                                         |                                                                           | Yes      |
 | name                   | Name to use for the Russound platform.                             |                                                                           | No       |
+| addRemote              | Add Apple Remote From Each Zone.                                   |                                                                           | No       |
 | debug                  | Enable debug logging.                                              | false                                                                     | No       |
 
 `controllers` configuration parameters:
