@@ -209,7 +209,7 @@ Platform-level configuration parameters:
 |------------------------|--------------------------------------------------------------------|---------------------------------------------------------------------------|----------|
 | platform               | Must always be `Russound`.                                         |                                                                           | Yes      |
 | name                   | Name to use for the Russound platform.                             |                                                                           | No       |
-| addRemote              | Add Apple Remote From Each Zone.                                   |                                                                           | No       |
+| addRemote              | Add Apple Remote For Each Zone.                                    | false                                                                     | No       |
 | debug                  | Enable debug logging.                                              | false                                                                     | No       |
 
 `controllers` configuration parameters:
