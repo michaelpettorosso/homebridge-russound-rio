@@ -18,7 +18,7 @@ class RussoundPlatform {
 
     this.log.debugEnabled = (this.config.debug === true)
 
-    Categories = api.hap.Accessory.Categories;
+    Categories = api.hap.Categories;
     PlatformAccessory = api.platformAccessory;
     UUIDGen = api.hap.uuid;
 
@@ -26,10 +26,15 @@ class RussoundPlatform {
     this.zones = null;
     this.sources = null;;
     this.accessories = [];
+    this.addRemote = false;
     if (this.config.controllers === undefined) {
       this.log.error('ERROR: your configuration is incorrect.');
       this.controllers = null;
     }
+    if (this.config.addRemote != undefined) {
+      this.addRemote = this.config.addRemote;
+    }
+
     this.rio = null;
     api.on('didFinishLaunching', () => {
       this.setupControllers();
@@ -150,22 +155,23 @@ class RussoundPlatform {
         // Initialize our state for this controller. We need to maintain state separately for each controller.
         if (controller.configuredZones) {
           controller.configuredZones.forEach(zone => {
-            const uuid = UUIDGen.generate(controller.name + controller.controllerId + zone.id + controller.ip);
-            const existingAccessory = this.accessories.find(accessory => accessory && accessory.UUID === uuid);
+
+            const uuid = UUIDGen.generate(`${controller.name}:${controller.controllerId}:${zone.id}:${zone.name}`);
+            const existingAccessory = this.accessories.find(accessory => accessory.category === Categories.AUDIO_RECEIVER && accessory.UUID === uuid);
             if (existingAccessory) {
               // the accessory already exists
               this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
 
               this.api.updatePlatformAccessories([existingAccessory]);
 
-              const zoneAccessory = new ZoneAccessory(this, existingAccessory, controller, zone, true);
+              const zoneAccessory = new ZoneAccessory(this, existingAccessory, controller, zone, this.addRemote, true);
 
             } else {
               // create a new accessory
-              this.log.info('Adding new accessory: %s, %s', `${zone.display_name} Zone`, zone.name);
+              this.log.info('Adding new accessory: %s, %s', `${zone.display_name} Speaker`, zone.name);
 
-              const accessory = new PlatformAccessory(`${zone.display_name} Zone`, uuid, Categories.AUDIO_RECEIVER);
-              const zoneAccessory = new ZoneAccessory(this, accessory, controller, zone);
+              const accessory = new PlatformAccessory(`${zone.display_name} Speaker`, uuid, Categories.AUDIO_RECEIVER);
+              const zoneAccessory = new ZoneAccessory(this, accessory, controller, zone, this.addRemote);
 
               // link the accessory to your platform
               this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
@@ -188,5 +194,6 @@ class RussoundPlatform {
 
     // add the restored accessory to the accessories cache so we can track if it has already been registered
     this.accessories.push(accessory);
+    this.log.info(this.accessories)
   }
 }

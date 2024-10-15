@@ -1,7 +1,7 @@
 const { RIO } = require('russound-rio');
-const PLUGIN_VERSION = '0.0.9';
+const PLUGIN_VERSION = '0.2.1';
 
-let Service, Characteristic;
+let Service, Characteristic, Perms;
 
 class ZoneAccessory {
     #platform = null;
@@ -12,6 +12,7 @@ class ZoneAccessory {
     name = null;
     zoneId = null;
     #zone = null;
+    #addRemote = false;
     #reload = false;
     #controller = null
     #maxVolume = 50;
@@ -21,7 +22,7 @@ class ZoneAccessory {
     #muteState = false;
     #volumeState = 0;
     #sourceState = null;
-    constructor(platform, accessory, controller, zone, reload) {
+    constructor(platform, accessory, controller, zone, addRemote, reload) {
         this.#platform = platform;
         this.#rio = platform.rio;
         this.#log = platform.log;
@@ -29,13 +30,14 @@ class ZoneAccessory {
         this.#reload = reload
         this.#controller = controller;
         this.#zone = zone;
+        this.#addRemote = addRemote;
         this.zoneId = Number(zone.id);
         var zoneName = zone.display_name;
-        ({ Service, Characteristic } = platform.api.hap);
+        ({ Service, Characteristic, Perms } = platform.api.hap);
 
         accessory.on('identify', this.identifyAccessory);
 
-        this.name = zoneName + ' Zone';
+        this.name = zoneName + ' Speaker';
         this.manufacturer = 'Russound';
         this.serial = `0000-0000-${this.zoneId}`;
         this.model = `${controller.name}-Zone ${this.zoneId}`;
@@ -46,6 +48,7 @@ class ZoneAccessory {
         this.#log.debug('Zone %s', this.zoneId);
         this.#log.debug('serial: %s', this.serial);
 
+        if (this.#addRemote === true)
         this.#buttons = {
             //[Characteristic.RemoteKey.REWIND]: 'rew',
             //[Characteristic.RemoteKey.FAST_FORWARD]: 'ff',
@@ -369,8 +372,8 @@ class ZoneAccessory {
         this.createZoneSourceServices(this.zoneService);
         this.createVolumeDimmerService(this.zoneService);
         this.createVolumeButtonServices(this.zoneService);
-        this.createMediaControlServices(this.zoneService);
-
+        if (this.#addRemote === true)
+          this.createMediaControlServices(this.zoneService);
         this.zoneService.setPrimaryService(true);
     }
 
@@ -382,31 +385,23 @@ class ZoneAccessory {
             .updateCharacteristic(Characteristic.Model, this.model)
             .updateCharacteristic(Characteristic.SerialNumber, this.serial)
             .updateCharacteristic(Characteristic.FirmwareRevision, PLUGIN_VERSION);
-        var configuredName = this.infoService.getCharacteristic(Characteristic.ConfiguredName) || this.infoService.addCharacteristic(Characteristic.ConfiguredName);
-        if (configuredName.value === '')
-            configuredName.setValue(this.name)
-        var hardwareRevision = this.infoService.getCharacteristic(Characteristic.HardwareRevision) || this.infoService.addCharacteristic(Characteristic.HardwareRevision);
-        hardwareRevision.setValue(this.#controller.macAddress)
-        var softwareRevision = this.infoService.getCharacteristic(Characteristic.SoftwareRevision) || this.infoService.addCharacteristic(Characteristic.SoftwareRevision);
-        hardwareRevision.setValue(this.#controller.systemVersion);
+        this.infoService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.infoService.setCharacteristic(Characteristic.ConfiguredName, this.name);
+    
+        this.infoService.addOptionalCharacteristic(Characteristic.HardwareRevision);
+        this.infoService.setCharacteristic(Characteristic.HardwareRevision, this.#controller.macAddress);
 
+        this.infoService.addOptionalCharacteristic(Characteristic.SoftwareRevision);
+        this.infoService.setCharacteristic(Characteristic.SoftwareRevision, this.#controller.systemVersion);
 
-        // .setProps({
-        //   perms: [Characteristic.Perms.READ]
-        // });
         this.#enabledServices.push(this.infoService)
     }
 
     createZoneService() {
         this.#log.debug('Creating Zone service for controller %s', this.name);
         const zoneService = this.#accessory.getServiceById(Service.Television, 'zoneservice') || this.#accessory.addService(Service.Television, this.name, 'zoneservice');
-
-        var configuredName = zoneService.getCharacteristic(Characteristic.ConfiguredName) || zoneService.addCharacteristic(Characteristic.ConfiguredName);
-        if (configuredName.value === '')
-            configuredName.setValue(this.name)
-        //   .setProps({
-        //     perms: [Characteristic.Perms.READ]
-        //   });
+        zoneService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        zoneService.setCharacteristic(Characteristic.ConfiguredName, this.name);
 
         zoneService
             .setCharacteristic(Characteristic.SleepDiscoveryMode, Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE);
@@ -421,6 +416,7 @@ class ZoneAccessory {
             .on('set', this.setZoneSource.bind(this))
             .on('get', this.getZoneSource.bind(this));
 
+        if (this.#addRemote === true)
         zoneService
             .getCharacteristic(Characteristic.RemoteKey)
             .on('set', this.remoteKeyPress.bind(this));
@@ -455,13 +451,14 @@ class ZoneAccessory {
             .setCharacteristic(Characteristic.ConfiguredName, name)
             .setCharacteristic(Characteristic.IsConfigured, Characteristic.IsConfigured.CONFIGURED)
             .setCharacteristic(Characteristic.InputSourceType, inputSourceType);
-        //Important to get as a selector
+        // //Important to get as a selector
         input.getCharacteristic(Characteristic.ConfiguredName).setProps({
-            perms: [Characteristic.Perms.READ]
+            perms: [Perms.READ]
         });
-        var inputDeviceType = input.getCharacteristic(Characteristic.InputDeviceType) || input.addCharacteristic(Characteristic.InputDeviceType)
-        if (inputDeviceType)
-            input.updateCharacteristic(Characteristic.InputDeviceType, Characteristic.InputDeviceType.AUDIO_SYSTEM)
+
+        input.addOptionalCharacteristic(Characteristic.InputDeviceType);
+        input.setCharacteristic(Characteristic.InputDeviceType, Characteristic.InputDeviceType.AUDIO_SYSTEM);
+
         zoneService.addLinkedService(input);
         this.#enabledServices.push(input)
     }
@@ -469,6 +466,9 @@ class ZoneAccessory {
 
     createVolumeDimmerService(zoneService) {
         this.volumeDimmerService = this.#accessory.getServiceById(Service.Lightbulb, 'volumeDimmerService') || this.#accessory.addService(Service.Lightbulb, 'Volume', 'volumeDimmerService');
+        this.volumeDimmerService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.volumeDimmerService.setCharacteristic(Characteristic.ConfiguredName, 'Volume');
+        this.volumeUpService
         var volume = this.volumeDimmerService.getCharacteristic(Characteristic.Brightness) || this.volumeDimmerService.addCharacteristic(Characteristic.Brightness)
         volume
             .on('get', this.getVolumeState.bind(this))
@@ -497,6 +497,8 @@ class ZoneAccessory {
     }
     createVolumeButtonServices(zoneService) {
         this.volumeUpService = this.#accessory.getServiceById(Service.Switch, 'volumeUpService') || this.#accessory.addService(Service.Switch, 'Volume Up', 'volumeUpService');
+        this.volumeUpService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.volumeUpService.setCharacteristic(Characteristic.ConfiguredName, 'Volume Up');
         this.volumeUpService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getVolumeSwitch.bind(this))
@@ -507,6 +509,8 @@ class ZoneAccessory {
         this.#enabledServices.push(this.volumeUpService);
 
         this.volumeDownService = this.#accessory.getServiceById(Service.Switch, 'volumeDownService') || this.#accessory.addService(Service.Switch, 'Volume Down', 'volumeDownService');
+        this.volumeDownService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.volumeDownService.setCharacteristic(Characteristic.ConfiguredName, 'Volume Down');
         this.volumeDownService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getVolumeSwitch.bind(this))
@@ -518,6 +522,8 @@ class ZoneAccessory {
         this.#enabledServices.push(this.volumeDownService);
 
         this.muteService = this.#accessory.getServiceById(Service.Switch, 'muteService') || this.#accessory.addService(Service.Switch, 'Mute', 'muteService');
+        this.muteService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.muteService.setCharacteristic(Characteristic.ConfiguredName, 'Mute');
         this.muteService
             .getCharacteristic(Characteristic.On)
             .on('get', (callback) => {
@@ -584,6 +590,8 @@ class ZoneAccessory {
 
     createMediaControlServices(zoneService) {
         this.mediaPlayService = this.#accessory.getServiceById(Service.Switch, 'mediaPlayService') || this.#accessory.addService(Service.Switch, 'Play', 'mediaPlayService');
+        this.mediaPlayService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.mediaPlayService.setCharacteristic(Characteristic.ConfiguredName, 'Play');
         this.mediaPlayService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getMediaControlSwitch.bind(this))
@@ -594,6 +602,8 @@ class ZoneAccessory {
         this.#enabledServices.push(this.mediaPlayService);
 
         this.mediaPauseService = this.#accessory.getServiceById(Service.Switch, 'mediaPauseService') || this.#accessory.addService(Service.Switch, 'Pause', 'mediaPauseService');
+        this.mediaPauseService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.mediaPauseService.setCharacteristic(Characteristic.ConfiguredName, 'Pause');
         this.mediaPauseService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getMediaControlSwitch.bind(this))
@@ -604,6 +614,8 @@ class ZoneAccessory {
         this.#enabledServices.push(this.mediaPauseService);
 
         this.mediaStopService = this.#accessory.getServiceById(Service.Switch, 'mediaStopService') || this.#accessory.addService(Service.Switch, 'Stop', 'mediaStopService');
+        this.mediaStopService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.mediaStopService.setCharacteristic(Characteristic.ConfiguredName, 'Stop');
         this.mediaStopService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getMediaControlSwitch.bind(this))
@@ -614,6 +626,8 @@ class ZoneAccessory {
         this.#enabledServices.push(this.mediaStopService);
 
         this.mediaRewindService = this.#accessory.getServiceById(Service.Switch, 'mediaRewindService') || this.#accessory.addService(Service.Switch, 'Rewind', 'mediaRewindService');
+        this.mediaRewindService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.mediaRewindService.setCharacteristic(Characteristic.ConfiguredName, 'Rewind');
         this.mediaRewindService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getMediaControlSwitch.bind(this))
@@ -625,6 +639,8 @@ class ZoneAccessory {
         this.#enabledServices.push(this.mediaRewindService);
 
         this.mediaFastForwardService = this.#accessory.getServiceById(Service.Switch, 'mediaFastForwardService') || this.#accessory.addService(Service.Switch, 'Fast Forward', 'mediaFastForwardService');
+        this.mediaFastForwardService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+        this.mediaFastForwardService.setCharacteristic(Characteristic.ConfiguredName, 'Fast Forward');
         this.mediaFastForwardService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getMediaControlSwitch.bind(this))
