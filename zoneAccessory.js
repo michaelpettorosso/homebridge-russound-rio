@@ -372,7 +372,8 @@ class ZoneAccessory {
         this.createZoneSourceServices(this.zoneService);
         this.createVolumeDimmerService(this.zoneService);
         this.createVolumeButtonServices(this.zoneService);
-        if (this.#addRemote === true)
+
+        if (this.#addRemote)
           this.createMediaControlServices(this.zoneService);
         this.zoneService.setPrimaryService(true);
     }

@@ -214,13 +214,13 @@ Platform-level configuration parameters:
 
 | Fields                 | Description                                                        | Default                                                                   | Required |
 |------------------------|--------------------------------------------------------------------|---------------------------------------------------------------------------|----------|
-| name                   | Name to use for this Russound Controller.                          | MCA-88X                                                                   | No       |
+| name                   | Name to use for this Russound Controller.                          | MCA-66                                                                    | No       |
 | ip                     | IP address of your Russound Controller.                            |                                                                           | Yes      |
 
 `zones` zones parameters:
 | Fields                 | Description                                                        | Default                                                                   | Required |
 |------------------------|--------------------------------------------------------------------|---------------------------------------------------------------------------|----------|
-| name                   | Name to of this zone configured on the Russound Controller.        |                                                                           | Yes      |
+| name                   | Name of this zone configured on the Russound Controller.           |                                                                           | Yes      |
 | display_name           | Name that you want the zone to display.                            | if blank it is name                                                       | No       |
 | sources                | List of sources to add to zone.                                    |                                                                           | No       |
 | enable                 | Hides zone from Homekit                                            | true                                                                      | No       |
@@ -228,7 +228,7 @@ Platform-level configuration parameters:
 `sources` sources parameters:
 | Fields                 | Description                                                        | Default                                                                   | Required |
 |------------------------|--------------------------------------------------------------------|---------------------------------------------------------------------------|----------|
-| name                   | Name to of this source configured on the Russound Controller.      |                                                                           | Yes      |
+| name                   | Name of this source configured on the Russound Controller.         |                                                                           | Yes      |
 | display_name           | Name that you want the source name to display                      | if blank it is name                                                       | No       |
 
 
